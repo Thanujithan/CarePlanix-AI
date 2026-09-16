@@ -12,12 +12,16 @@ router = APIRouter(
 )
 
 
+# =========================================================
+# RESUME UPLOAD + COMPLETE AI ANALYSIS
+# =========================================================
+
 @router.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
 
-    # ==========================================
+    # =====================================================
     # 1. VALIDATE FILE
-    # ==========================================
+    # =====================================================
 
     if not file.filename:
         raise HTTPException(
@@ -31,15 +35,21 @@ async def upload_resume(file: UploadFile = File(...)):
             detail="Only PDF files are allowed"
         )
 
-    # ==========================================
+    # =====================================================
     # 2. CREATE UPLOAD FOLDER
-    # ==========================================
+    # =====================================================
 
     upload_folder = "uploads"
-    os.makedirs(upload_folder, exist_ok=True)
 
-    # Use only the filename, not a supplied path
-    safe_filename = os.path.basename(file.filename)
+    os.makedirs(
+        upload_folder,
+        exist_ok=True
+    )
+
+    # Prevent paths supplied through the filename
+    safe_filename = os.path.basename(
+        file.filename
+    )
 
     file_path = os.path.join(
         upload_folder,
@@ -48,9 +58,9 @@ async def upload_resume(file: UploadFile = File(...)):
 
     try:
 
-        # ==========================================
-        # 3. SAVE PDF
-        # ==========================================
+        # =================================================
+        # 3. READ + VALIDATE PDF
+        # =================================================
 
         file_content = await file.read()
 
@@ -60,7 +70,7 @@ async def upload_resume(file: UploadFile = File(...)):
                 detail="The uploaded PDF is empty"
             )
 
-        # 10 MB limit
+        # Maximum PDF size = 10 MB
         max_file_size = 10 * 1024 * 1024
 
         if len(file_content) > max_file_size:
@@ -69,12 +79,21 @@ async def upload_resume(file: UploadFile = File(...)):
                 detail="PDF must be smaller than 10 MB"
             )
 
-        with open(file_path, "wb") as buffer:
-            buffer.write(file_content)
+        # =================================================
+        # 4. SAVE PDF TEMPORARILY
+        # =================================================
 
-        # ==========================================
-        # 4. EXTRACT TEXT
-        # ==========================================
+        with open(
+            file_path,
+            "wb"
+        ) as buffer:
+            buffer.write(
+                file_content
+            )
+
+        # =================================================
+        # 5. EXTRACT RESUME TEXT
+        # =================================================
 
         extracted_text = extract_text_from_pdf(
             file_path
@@ -89,9 +108,17 @@ async def upload_resume(file: UploadFile = File(...)):
                 detail="Could not extract text from PDF"
             )
 
-        # ==========================================
-        # 5. RUN CAREPLANIX AI WORKFLOW
-        # ==========================================
+        # Clean unnecessary surrounding whitespace
+        extracted_text = extracted_text.strip()
+
+        print(
+            f"Resume text extracted successfully "
+            f"({len(extracted_text)} characters)"
+        )
+
+        # =================================================
+        # 6. RUN CAREPLANIX MASTER AI WORKFLOW
+        # =================================================
 
         max_retries = 3
         result = None
@@ -105,41 +132,61 @@ async def upload_resume(file: UploadFile = File(...)):
                     f"{attempt + 1}/{max_retries}"
                 )
 
+                # -----------------------------------------
+                # LangGraph -> Master Agent
+                #
+                # Only ONE Gemini request is made by
+                # master_agent.py.
+                # -----------------------------------------
+
                 result = resume_graph.invoke({
                     "resume_text": extracted_text,
-                    "analysis": "",
-                    "skill_analysis": "",
-                    "career_analysis": "",
-                    "skill_gap_analysis": "",
-                    "roadmap": "",
-                    "job_matches": ""
+
+                    "analysis": {},
+
+                    "skill_analysis": {},
+
+                    "career_analysis": {},
+
+                    "skill_gap_analysis": {},
+
+                    "roadmap": {},
+
+                    "job_matches": {},
+
+                    "company_matches": {}
                 })
 
-                # Successful analysis
+                print(
+                    "CarePlanix AI analysis completed "
+                    "successfully."
+                )
+
                 break
 
             except Exception as e:
 
                 error_message = str(e)
+                error_upper = error_message.upper()
 
                 print(
-                    f"AI attempt {attempt + 1} failed:",
+                    f"AI attempt "
+                    f"{attempt + 1} failed:",
                     error_message
                 )
 
-                # ==================================
-                # TEMPORARY AI PROVIDER ERROR
-                # ==================================
+                # =========================================
+                # 503 - TEMPORARY PROVIDER ERROR
+                # =========================================
 
                 temporary_error = (
                     "503" in error_message
-                    or "UNAVAILABLE" in error_message.upper()
-                    or "HIGH DEMAND" in error_message.upper()
+                    or "UNAVAILABLE" in error_upper
+                    or "HIGH DEMAND" in error_upper
                 )
 
                 if temporary_error:
 
-                    # Retry if attempts remain
                     if attempt < max_retries - 1:
 
                         wait_time = 3 * (
@@ -147,8 +194,10 @@ async def upload_resume(file: UploadFile = File(...)):
                         )
 
                         print(
-                            f"AI service unavailable. "
-                            f"Retrying in {wait_time} seconds..."
+                            "AI service temporarily "
+                            "unavailable. "
+                            f"Retrying in {wait_time} "
+                            "seconds..."
                         )
 
                         await asyncio.sleep(
@@ -157,7 +206,6 @@ async def upload_resume(file: UploadFile = File(...)):
 
                         continue
 
-                    # All retries failed
                     raise HTTPException(
                         status_code=503,
                         detail=(
@@ -168,28 +216,146 @@ async def upload_resume(file: UploadFile = File(...)):
                         )
                     )
 
-                # ==================================
-                # OTHER AI ERRORS
-                # ==================================
+                # =========================================
+                # 429 - GEMINI QUOTA / RATE LIMIT
+                # =========================================
+
+                quota_error = (
+                    "429" in error_message
+                    or "RESOURCE_EXHAUSTED" in error_upper
+                    or "QUOTA" in error_upper
+                    or "RATE LIMIT" in error_upper
+                )
+
+                if quota_error:
+
+                    raise HTTPException(
+                        status_code=429,
+                        detail=(
+                            "CarePlanix AI usage limit "
+                            "has been reached. "
+                            "Please wait and try again "
+                            "after the Gemini API quota "
+                            "becomes available."
+                        )
+                    )
+
+                # =========================================
+                # OTHER AI ERROR
+                # =========================================
 
                 raise
 
-        # ==========================================
-        # 6. CHECK RESULT
-        # ==========================================
+        # =================================================
+        # 7. VALIDATE LANGGRAPH RESULT
+        # =================================================
 
         if result is None:
             raise HTTPException(
                 status_code=500,
                 detail=(
-                    "CarePlanix AI could not "
-                    "complete the resume analysis."
+                    "CarePlanix AI could not complete "
+                    "the resume analysis."
                 )
             )
 
-        # ==========================================
-        # 7. RETURN COMPLETE RESULT
-        # ==========================================
+        if not isinstance(result, dict):
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "CarePlanix AI returned an "
+                    "invalid result."
+                )
+            )
+
+        # =================================================
+        # 8. GET RESULT SECTIONS
+        # =================================================
+
+        analysis = result.get(
+            "analysis",
+            {}
+        )
+
+        skill_analysis = result.get(
+            "skill_analysis",
+            {}
+        )
+
+        career_analysis = result.get(
+            "career_analysis",
+            {}
+        )
+
+        skill_gap_analysis = result.get(
+            "skill_gap_analysis",
+            {}
+        )
+
+        roadmap = result.get(
+            "roadmap",
+            {}
+        )
+
+        job_matches = result.get(
+            "job_matches",
+            {}
+        )
+
+        company_matches = result.get(
+            "company_matches",
+            {}
+        )
+
+        # =================================================
+        # 9. SAFETY CHECK RESULT TYPES
+        # =================================================
+
+        if not isinstance(
+            analysis,
+            dict
+        ):
+            analysis = {}
+
+        if not isinstance(
+            skill_analysis,
+            dict
+        ):
+            skill_analysis = {}
+
+        if not isinstance(
+            career_analysis,
+            dict
+        ):
+            career_analysis = {}
+
+        if not isinstance(
+            skill_gap_analysis,
+            dict
+        ):
+            skill_gap_analysis = {}
+
+        if not isinstance(
+            roadmap,
+            dict
+        ):
+            roadmap = {}
+
+        if not isinstance(
+            job_matches,
+            dict
+        ):
+            job_matches = {}
+
+        if not isinstance(
+            company_matches,
+            dict
+        ):
+            company_matches = {}
+
+        # =================================================
+        # 10. RETURN COMPLETE RESPONSE TO FRONTEND
+        # =================================================
 
         return {
             "filename": safe_filename,
@@ -198,52 +364,37 @@ async def upload_resume(file: UploadFile = File(...)):
                 extracted_text[:1000],
 
             "analysis":
-                result.get(
-                    "analysis",
-                    ""
-                ),
+                analysis,
 
             "skill_analysis":
-                result.get(
-                    "skill_analysis",
-                    ""
-                ),
+                skill_analysis,
 
             "career_analysis":
-                result.get(
-                    "career_analysis",
-                    ""
-                ),
+                career_analysis,
 
             "skill_gap_analysis":
-                result.get(
-                    "skill_gap_analysis",
-                    ""
-                ),
+                skill_gap_analysis,
 
             "roadmap":
-                result.get(
-                    "roadmap",
-                    ""
-                ),
+                roadmap,
 
             "job_matches":
-                result.get(
-                    "job_matches",
-                    ""
-                )
+                job_matches,
+
+            "company_matches":
+                company_matches
         }
 
-    # ==========================================
-    # FASTAPI ERRORS
-    # ==========================================
+    # =====================================================
+    # FASTAPI HTTP ERRORS
+    # =====================================================
 
     except HTTPException:
         raise
 
-    # ==========================================
+    # =====================================================
     # UNEXPECTED ERRORS
-    # ==========================================
+    # =====================================================
 
     except Exception as e:
 
@@ -260,22 +411,30 @@ async def upload_resume(file: UploadFile = File(...)):
             )
         )
 
-    # ==========================================
-    # CLEANUP
-    # ==========================================
+    # =====================================================
+    # CLEANUP TEMPORARY PDF
+    # =====================================================
 
     finally:
 
-        # Delete uploaded CV after analysis.
-        # This avoids permanently storing
-        # users' resumes on the server.
-
         try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+
+            if os.path.exists(
+                file_path
+            ):
+                os.remove(
+                    file_path
+                )
+
+                print(
+                    "Temporary resume deleted:",
+                    safe_filename
+                )
 
         except Exception as cleanup_error:
+
             print(
-                "Could not remove uploaded file:",
+                "Could not remove "
+                "uploaded file:",
                 cleanup_error
             )
