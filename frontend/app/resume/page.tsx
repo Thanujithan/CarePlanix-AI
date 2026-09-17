@@ -10,18 +10,31 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 type ResumeResult = {
   filename: string;
   text_preview: string;
 
-  analysis: string;
-  skill_analysis: string;
-  career_analysis: string;
-  skill_gap_analysis: string;
-  roadmap: string;
-  job_matches: string;
+  analysis: Record<string, unknown>;
+  skill_analysis: Record<string, unknown>;
+  career_analysis: Record<string, unknown>;
+  skill_gap_analysis: Record<string, unknown>;
+  roadmap: Record<string, unknown>;
+  job_matches: Record<string, unknown>;
+  company_matches: Record<string, unknown>;
+
+  history_id?: string;
+  history_saved?: boolean;
+  created_at?: string;
 };
 
+
+/* =========================================================
+   RESUME PAGE
+========================================================= */
 
 export default function ResumePage() {
 
@@ -40,10 +53,9 @@ export default function ResumePage() {
     useState("");
 
 
-
-  /* =========================
+  /* =======================================================
      FILE VALIDATION
-  ========================= */
+  ======================================================= */
 
   const validateFile = (
     selectedFile: File
@@ -88,10 +100,9 @@ export default function ResumePage() {
   };
 
 
-
-  /* =========================
+  /* =======================================================
      FILE INPUT
-  ========================= */
+  ======================================================= */
 
   const handleFileChange = (
     event:
@@ -107,10 +118,9 @@ export default function ResumePage() {
   };
 
 
-
-  /* =========================
+  /* =======================================================
      DRAG & DROP
-  ========================= */
+  ======================================================= */
 
   const handleDragOver = (
     event:
@@ -124,6 +134,7 @@ export default function ResumePage() {
 
 
   const handleDragLeave = () => {
+
     setDragging(false);
   };
 
@@ -147,13 +158,16 @@ export default function ResumePage() {
   };
 
 
-
-  /* =========================
+  /* =======================================================
      ANALYZE RESUME
-  ========================= */
+  ======================================================= */
 
   const analyzeResume =
     async () => {
+
+      /* ---------------------------------------------------
+         CHECK FILE
+      --------------------------------------------------- */
 
       if (!file) {
 
@@ -165,14 +179,50 @@ export default function ResumePage() {
       }
 
 
+      /* ---------------------------------------------------
+         CHECK LOGIN TOKEN
+      --------------------------------------------------- */
+
+      const token =
+        localStorage.getItem(
+          "careplanix_access_token"
+        );
+
+
+      if (!token) {
+
+        setError(
+          "Please login before analyzing your resume."
+        );
+
+
+        setTimeout(() => {
+
+          router.push(
+            "/login"
+          );
+
+        }, 1000);
+
+
+        return;
+      }
+
+
       setLoading(true);
+
       setError("");
 
 
       try {
 
+        /* -------------------------------------------------
+           CREATE FORM DATA
+        ------------------------------------------------- */
+
         const formData =
           new FormData();
+
 
         formData.append(
           "file",
@@ -180,11 +230,21 @@ export default function ResumePage() {
         );
 
 
+        /* -------------------------------------------------
+           SEND RESUME + JWT TOKEN
+        ------------------------------------------------- */
+
         const response =
           await fetch(
             "http://127.0.0.1:8000/resume/upload",
             {
               method: "POST",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+
               body: formData,
             }
           );
@@ -193,6 +253,46 @@ export default function ResumePage() {
         const data =
           await response.json();
 
+
+        /* -------------------------------------------------
+           INVALID / EXPIRED TOKEN
+        ------------------------------------------------- */
+
+        if (
+          response.status === 401 ||
+          response.status === 403
+        ) {
+
+          localStorage.removeItem(
+            "careplanix_access_token"
+          );
+
+          localStorage.removeItem(
+            "careplanix_user"
+          );
+
+
+          setError(
+            "Your login session has expired. Please login again."
+          );
+
+
+          setTimeout(() => {
+
+            router.push(
+              "/login"
+            );
+
+          }, 1000);
+
+
+          return;
+        }
+
+
+        /* -------------------------------------------------
+           BACKEND ERROR
+        ------------------------------------------------- */
 
         if (!response.ok) {
 
@@ -203,16 +303,20 @@ export default function ResumePage() {
         }
 
 
+        /* -------------------------------------------------
+           RESULT
+        ------------------------------------------------- */
+
         const result:
           ResumeResult = data;
 
 
-        /*
-          Save result temporarily.
+        /* -------------------------------------------------
+           SAVE RESULT TEMPORARILY
 
-          Results page will read
-          this data.
-        */
+           Results page will read this
+           from sessionStorage.
+        ------------------------------------------------- */
 
         sessionStorage.setItem(
           "careplanix_resume_result",
@@ -220,9 +324,25 @@ export default function ResumePage() {
         );
 
 
-        /*
-          Open Results Dashboard
-        */
+        /* -------------------------------------------------
+           DEBUG HISTORY SAVE
+        ------------------------------------------------- */
+
+        if (
+          result.history_saved &&
+          result.history_id
+        ) {
+
+          console.log(
+            "Analysis history saved:",
+            result.history_id
+          );
+        }
+
+
+        /* -------------------------------------------------
+           OPEN RESULTS DASHBOARD
+        ------------------------------------------------- */
 
         router.push(
           "/results"
@@ -261,6 +381,9 @@ export default function ResumePage() {
     };
 
 
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
 
@@ -274,9 +397,9 @@ export default function ResumePage() {
       "
     >
 
-      {/* =====================
+      {/* ===================================================
           BACKGROUND
-      ===================== */}
+      =================================================== */}
 
       <div
         className="
@@ -315,10 +438,9 @@ export default function ResumePage() {
       />
 
 
-
-      {/* =====================
+      {/* ===================================================
           NAVBAR
-      ===================== */}
+      =================================================== */}
 
       <nav
         className="
@@ -343,7 +465,7 @@ export default function ResumePage() {
           "
         >
 
-          {/* Logo */}
+          {/* LOGO */}
 
           <Link
             href="/"
@@ -428,6 +550,7 @@ export default function ResumePage() {
           </Link>
 
 
+          {/* BACK HOME */}
 
           <Link
             href="/"
@@ -455,10 +578,9 @@ export default function ResumePage() {
       </nav>
 
 
-
-      {/* =====================
+      {/* ===================================================
           MAIN CONTENT
-      ===================== */}
+      =================================================== */}
 
       <section
         className="
@@ -472,8 +594,9 @@ export default function ResumePage() {
         "
       >
 
-
-        {/* Header */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
         <div
           className="
@@ -515,7 +638,6 @@ export default function ResumePage() {
           </div>
 
 
-
           <h1
             className="
               mt-6
@@ -541,7 +663,6 @@ export default function ResumePage() {
           </h1>
 
 
-
           <p
             className="
               mx-auto
@@ -565,10 +686,9 @@ export default function ResumePage() {
         </div>
 
 
-
-        {/* =====================
+        {/* =================================================
             CONTENT GRID
-        ===================== */}
+        ================================================= */}
 
         <div
           className="
@@ -581,10 +701,9 @@ export default function ResumePage() {
           "
         >
 
-
-          {/* =================
+          {/* ===============================================
               UPLOAD CARD
-          ================= */}
+          =============================================== */}
 
           <div
             className="
@@ -595,8 +714,7 @@ export default function ResumePage() {
             "
           >
 
-
-            {/* Drop Area */}
+            {/* DROP AREA */}
 
             <div
               onDragOver={
@@ -636,7 +754,6 @@ export default function ResumePage() {
               `}
             >
 
-
               <div
                 className="
                   mx-auto
@@ -650,11 +767,8 @@ export default function ResumePage() {
                   text-4xl
                 "
               >
-
                 📄
-
               </div>
-
 
 
               <h2
@@ -671,7 +785,6 @@ export default function ResumePage() {
               </h2>
 
 
-
               <p
                 className="
                   mt-3
@@ -683,7 +796,6 @@ export default function ResumePage() {
                 to browse
 
               </p>
-
 
 
               <label
@@ -704,18 +816,20 @@ export default function ResumePage() {
 
                 <input
                   type="file"
+
                   accept="
                     .pdf,
                     application/pdf
                   "
+
                   onChange={
                     handleFileChange
                   }
+
                   className="hidden"
                 />
 
               </label>
-
 
 
               <p
@@ -727,17 +841,17 @@ export default function ResumePage() {
               >
 
                 PDF files only
-                • Maximum 10 MB
+                {" "}•{" "}
+                Maximum 10 MB
 
               </p>
 
             </div>
 
 
-
-            {/* =================
+            {/* ===============================================
                 SELECTED FILE
-            ================= */}
+            =============================================== */}
 
             {file && (
 
@@ -757,7 +871,6 @@ export default function ResumePage() {
                   sm:justify-between
                 "
               >
-
 
                 <div
                   className="
@@ -779,9 +892,7 @@ export default function ResumePage() {
                       text-xl
                     "
                   >
-
                     📄
-
                   </div>
 
 
@@ -824,7 +935,6 @@ export default function ResumePage() {
                 </div>
 
 
-
                 <button
                   type="button"
 
@@ -853,10 +963,9 @@ export default function ResumePage() {
             )}
 
 
-
-            {/* =================
+            {/* ===============================================
                 ERROR
-            ================= */}
+            =============================================== */}
 
             {error && (
 
@@ -880,10 +989,9 @@ export default function ResumePage() {
             )}
 
 
-
-            {/* =================
+            {/* ===============================================
                 ANALYZE BUTTON
-            ================= */}
+            =============================================== */}
 
             <button
               type="button"
@@ -919,8 +1027,9 @@ export default function ResumePage() {
             </button>
 
 
-
-            {/* Loading */}
+            {/* ===============================================
+                LOADING
+            =============================================== */}
 
             {loading && (
 
@@ -980,10 +1089,9 @@ export default function ResumePage() {
           </div>
 
 
-
-          {/* =================
+          {/* ===============================================
               WHY UPLOAD
-          ================= */}
+          =============================================== */}
 
           <div
             className="
@@ -1006,9 +1114,7 @@ export default function ResumePage() {
                 text-2xl
               "
             >
-
               ✦
-
             </div>
 
 
@@ -1031,7 +1137,6 @@ export default function ResumePage() {
                 space-y-5
               "
             >
-
 
               {[
                 [
@@ -1064,11 +1169,22 @@ export default function ResumePage() {
                   "Job matches",
                 ],
 
+                [
+                  "🏢",
+                  "Sri Lanka company recommendations",
+                ],
+
+                [
+                  "💾",
+                  "Save analysis to your account",
+                ],
+
               ].map(
                 ([icon, text]) => (
 
                   <div
                     key={text}
+
                     className="
                       flex
                       items-center
@@ -1119,6 +1235,5 @@ export default function ResumePage() {
       </section>
 
     </main>
-
   );
 }

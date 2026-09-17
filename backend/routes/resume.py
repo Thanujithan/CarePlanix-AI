@@ -1,9 +1,18 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-import os
+from datetime import datetime, timezone
 import asyncio
+import os
+
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    HTTPException,
+    Depends,
+)
 
 from services.resume_service import extract_text_from_pdf
 from agents.resume_graph import resume_graph
+from utils.auth import get_current_user_id
 
 
 router = APIRouter(
@@ -17,7 +26,10 @@ router = APIRouter(
 # =========================================================
 
 @router.post("/upload")
-async def upload_resume(file: UploadFile = File(...)):
+async def upload_resume(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user_id),
+):
 
     # =====================================================
     # 1. VALIDATE FILE
@@ -46,14 +58,24 @@ async def upload_resume(file: UploadFile = File(...)):
         exist_ok=True
     )
 
-    # Prevent paths supplied through the filename
+    # Prevent unsafe paths from filename
     safe_filename = os.path.basename(
         file.filename
     )
 
+    # Add timestamp so two uploads with same filename
+    # do not conflict.
+    timestamp = datetime.now(
+        timezone.utc
+    ).strftime("%Y%m%d%H%M%S%f")
+
+    temp_filename = (
+        f"{timestamp}_{safe_filename}"
+    )
+
     file_path = os.path.join(
         upload_folder,
-        safe_filename
+        temp_filename
     )
 
     try:
@@ -108,11 +130,12 @@ async def upload_resume(file: UploadFile = File(...)):
                 detail="Could not extract text from PDF"
             )
 
-        # Clean unnecessary surrounding whitespace
-        extracted_text = extracted_text.strip()
+        extracted_text = (
+            extracted_text.strip()
+        )
 
         print(
-            f"Resume text extracted successfully "
+            "Resume text extracted successfully "
             f"({len(extracted_text)} characters)"
         )
 
@@ -128,7 +151,7 @@ async def upload_resume(file: UploadFile = File(...)):
             try:
 
                 print(
-                    f"CarePlanix AI analysis attempt "
+                    "CarePlanix AI analysis attempt "
                     f"{attempt + 1}/{max_retries}"
                 )
 
@@ -136,30 +159,38 @@ async def upload_resume(file: UploadFile = File(...)):
                 # LangGraph -> Master Agent
                 #
                 # Only ONE Gemini request is made by
-                # master_agent.py.
+                # master_agent.py
                 # -----------------------------------------
 
                 result = resume_graph.invoke({
-                    "resume_text": extracted_text,
+                    "resume_text":
+                        extracted_text,
 
-                    "analysis": {},
+                    "analysis":
+                        {},
 
-                    "skill_analysis": {},
+                    "skill_analysis":
+                        {},
 
-                    "career_analysis": {},
+                    "career_analysis":
+                        {},
 
-                    "skill_gap_analysis": {},
+                    "skill_gap_analysis":
+                        {},
 
-                    "roadmap": {},
+                    "roadmap":
+                        {},
 
-                    "job_matches": {},
+                    "job_matches":
+                        {},
 
-                    "company_matches": {}
+                    "company_matches":
+                        {}
                 })
 
                 print(
-                    "CarePlanix AI analysis completed "
-                    "successfully."
+                    "CarePlanix AI analysis "
+                    "completed successfully."
                 )
 
                 break
@@ -167,7 +198,9 @@ async def upload_resume(file: UploadFile = File(...)):
             except Exception as e:
 
                 error_message = str(e)
-                error_upper = error_message.upper()
+                error_upper = (
+                    error_message.upper()
+                )
 
                 print(
                     f"AI attempt "
@@ -189,8 +222,8 @@ async def upload_resume(file: UploadFile = File(...)):
 
                     if attempt < max_retries - 1:
 
-                        wait_time = 3 * (
-                            attempt + 1
+                        wait_time = (
+                            3 * (attempt + 1)
                         )
 
                         print(
@@ -222,9 +255,11 @@ async def upload_resume(file: UploadFile = File(...)):
 
                 quota_error = (
                     "429" in error_message
-                    or "RESOURCE_EXHAUSTED" in error_upper
+                    or "RESOURCE_EXHAUSTED"
+                    in error_upper
                     or "QUOTA" in error_upper
-                    or "RATE LIMIT" in error_upper
+                    or "RATE LIMIT"
+                    in error_upper
                 )
 
                 if quota_error:
@@ -259,7 +294,10 @@ async def upload_resume(file: UploadFile = File(...)):
                 )
             )
 
-        if not isinstance(result, dict):
+        if not isinstance(
+            result,
+            dict
+        ):
             raise HTTPException(
                 status_code=500,
                 detail=(
@@ -354,11 +392,16 @@ async def upload_resume(file: UploadFile = File(...)):
             company_matches = {}
 
         # =================================================
-        # 10. RETURN COMPLETE RESPONSE TO FRONTEND
+        # 10. CREATE RESPONSE DATA
         # =================================================
 
-        return {
-            "filename": safe_filename,
+        created_at = datetime.now(
+            timezone.utc
+        )
+
+        response_data = {
+            "filename":
+                safe_filename,
 
             "text_preview":
                 extracted_text[:1000],
@@ -382,8 +425,89 @@ async def upload_resume(file: UploadFile = File(...)):
                 job_matches,
 
             "company_matches":
-                company_matches
+                company_matches,
         }
+
+        # =================================================
+        # 11. SAVE ANALYSIS HISTORY TO MONGODB
+        # =================================================
+
+        from main import db
+
+        history_document = {
+
+            # Logged-in user who owns this analysis
+            "user_id":
+                user_id,
+
+            # Resume information
+            "filename":
+                safe_filename,
+
+            # Small preview only.
+            # Full extracted resume text is not saved here.
+            "text_preview":
+                extracted_text[:1000],
+
+            # AI Results
+            "analysis":
+                analysis,
+
+            "skill_analysis":
+                skill_analysis,
+
+            "career_analysis":
+                career_analysis,
+
+            "skill_gap_analysis":
+                skill_gap_analysis,
+
+            "roadmap":
+                roadmap,
+
+            "job_matches":
+                job_matches,
+
+            "company_matches":
+                company_matches,
+
+            # Timestamp
+            "created_at":
+                created_at,
+        }
+
+        history_result = (
+            db.analysis_history.insert_one(
+                history_document
+            )
+        )
+
+        history_id = str(
+            history_result.inserted_id
+        )
+
+        print(
+            "Analysis history saved successfully:",
+            history_id
+        )
+
+        # =================================================
+        # 12. RETURN COMPLETE RESPONSE
+        # =================================================
+
+        response_data[
+            "history_id"
+        ] = history_id
+
+        response_data[
+            "history_saved"
+        ] = True
+
+        response_data[
+            "created_at"
+        ] = created_at.isoformat()
+
+        return response_data
 
     # =====================================================
     # FASTAPI HTTP ERRORS
