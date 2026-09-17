@@ -1,0 +1,580 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #184e6c;
+  --blue: #387ea2;
+  --sky: #5ba3c6;
+  --light-blue: #9bcbe5;
+  --ice: #ddecf6;
+
+  --background: #0c4263;
+  --foreground: #f4fbff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ================================
+   MOUNTAIN BACKGROUND
+================================ */
+
+.mountain-bg {
+  position: relative;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(24, 78, 108, 0.70),
+      rgba(56, 126, 162, 0.48),
+      rgba(24, 78, 108, 0.82)
+    ),
+    url("/mountain-bg.jpg");
+
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* ================================
+   ANIMATED OVERLAY
+================================ */
+
+.mountain-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(155, 203, 229, 0.20),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(91, 163, 198, 0.18),
+      transparent 35%
+    );
+
+  animation: backgroundGlow 10s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes backgroundGlow {
+  0% {
+    opacity: 0.45;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ================================
+   FLOATING GLOW
+================================ */
+
+.glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(100px);
+  pointer-events: none;
+  animation: floatingGlow 9s ease-in-out infinite alternate;
+}
+
+.glow-one {
+  width: 450px;
+  height: 450px;
+
+  background: rgba(91, 163, 198, 0.24);
+
+  top: 10%;
+  left: -150px;
+}
+
+.glow-two {
+  width: 500px;
+  height: 500px;
+
+  background: rgba(155, 203, 229, 0.16);
+
+  right: -180px;
+  top: 20%;
+
+  animation-delay: 2s;
+}
+
+@keyframes floatingGlow {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(60px, 35px, 0) scale(1.15);
+  }
+}
+
+/* ================================
+   PARTICLES
+================================ */
+
+.particle {
+  position: absolute;
+
+  width: 4px;
+  height: 4px;
+
+  border-radius: 50%;
+
+  background: #ddecf6;
+
+  box-shadow:
+    0 0 8px rgba(221, 236, 246, 0.9),
+    0 0 15px rgba(155, 203, 229, 0.7);
+
+  opacity: 0.5;
+
+  animation: particleFloat 8s ease-in-out infinite;
+}
+
+.particle-1 {
+  top: 25%;
+  left: 15%;
+}
+
+.particle-2 {
+  top: 35%;
+  left: 42%;
+  animation-delay: 1s;
+}
+
+.particle-3 {
+  top: 20%;
+  left: 70%;
+  animation-delay: 2s;
+}
+
+.particle-4 {
+  top: 55%;
+  left: 80%;
+  animation-delay: 3s;
+}
+
+.particle-5 {
+  top: 65%;
+  left: 25%;
+  animation-delay: 4s;
+}
+
+@keyframes particleFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.25;
+  }
+
+  50% {
+    transform: translateY(-45px);
+    opacity: 1;
+  }
+}
+
+/* ================================
+   GLASS EFFECT
+================================ */
+
+.glass {
+  background: rgba(221, 236, 246, 0.10);
+
+  border: 1px solid rgba(221, 236, 246, 0.22);
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  box-shadow:
+    0 20px 50px rgba(0, 30, 50, 0.16);
+}
+
+.glass-card {
+  background: rgba(221, 236, 246, 0.11);
+
+  border: 1px solid rgba(221, 236, 246, 0.20);
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  transition:
+    transform 0.35s ease,
+    background 0.35s ease,
+    border 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-8px);
+
+  background: rgba(221, 236, 246, 0.17);
+
+  border-color: rgba(221, 236, 246, 0.40);
+
+  box-shadow:
+    0 20px 45px rgba(0, 35, 60, 0.22);
+}
+
+/* ================================
+   GRADIENT TEXT
+================================ */
+
+.blue-gradient-text {
+  background: linear-gradient(
+    90deg,
+    #ffffff,
+    #ddecf6,
+    #9bcbe5
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent;
+}
+
+/* ================================
+   BUTTON
+================================ */
+
+.primary-button {
+  background: linear-gradient(
+    135deg,
+    #ddecf6,
+    #9bcbe5
+  );
+
+  color: #184e6c;
+
+  box-shadow:
+    0 10px 30px rgba(155, 203, 229, 0.25);
+
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 15px 35px rgba(155, 203, 229, 0.40);
+}
+
+/* ================================
+   SECTION BACKGROUND
+================================ */
+
+.light-section {
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(155, 203, 229, 0.40),
+      transparent 40%
+    ),
+    linear-gradient(
+      180deg,
+      #ddecf6,
+      #edf7fc
+    );
+
+  color: #184e6c;
+}
+
+/* ================================
+   FLOATING CARD ANIMATION
+================================ */
+
+.float-card {
+  animation: floatCard 5s ease-in-out infinite;
+}
+
+.float-card:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.float-card:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+.float-card:nth-child(4) {
+  animation-delay: 1.8s;
+}
+
+/* ================= DARK MODE ================= */
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark .mountain-bg {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(3, 18, 30, 0.88),
+      rgba(7, 42, 64, 0.80),
+      rgba(4, 28, 45, 0.94)
+    ),
+    url("/mountain-bg.jpg");
+
+  background-size: cover;
+  background-position: center;
+}
+
+html.dark .light-section {
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(56, 126, 162, 0.18),
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      #071e2d,
+      #0b2c42
+    );
+
+  color: #f4fbff;
+}
+
+html.dark .section-title,
+html.dark .feature-title {
+  color: #f4fbff;
+}
+
+html.dark .section-description,
+html.dark .feature-description,
+html.dark .section-label {
+  color: #b9dbea;
+}
+
+html.dark .section-badge {
+  background: rgba(91, 163, 198, 0.2);
+  color: #ddecf6;
+}
+
+html.dark .feature-light-card {
+  background: rgba(12, 53, 78, 0.72);
+  border-color: rgba(155, 203, 229, 0.18);
+}
+
+html.dark .feature-light-card:hover {
+  background: rgba(18, 72, 102, 0.85);
+  border-color: rgba(155, 203, 229, 0.4);
+}
+
+html.dark .glass,
+html.dark .glass-card {
+  background: rgba(6, 37, 57, 0.6);
+  border-color: rgba(155, 203, 229, 0.2);
+}
+
+html.dark .theme-toggle {
+  background: rgba(7, 35, 53, 0.7);
+  border-color: rgba(155, 203, 229, 0.3);
+}
+
+/* ========================================
+   CAREPLANIX RESULTS DASHBOARD
+======================================== */
+
+.results-page {
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      rgba(155, 203, 229, 0.35),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #ddecf6 0%,
+      #edf7fc 50%,
+      #ddecf6 100%
+    );
+
+  color: #184e6c;
+}
+
+.results-header {
+  background:
+    linear-gradient(
+      135deg,
+      #184e6c,
+      #387ea2
+    );
+
+  color: white;
+}
+
+.results-body {
+  min-height: 70vh;
+}
+
+.results-card,
+.results-stat,
+.results-tabs {
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.results-stat:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 15px 35px rgba(24, 78, 108, 0.12);
+}
+
+
+/* ========================================
+   RESULTS DARK MODE
+======================================== */
+
+html.dark .results-page {
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      rgba(56, 126, 162, 0.15),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #061a28 0%,
+      #09283b 50%,
+      #071e2d 100%
+    );
+
+  color: #f4fbff;
+}
+
+html.dark .results-navbar {
+  background: rgba(6, 26, 40, 0.88);
+
+  border-color:
+    rgba(155, 203, 229, 0.15);
+}
+
+html.dark .results-logo {
+  color: #f4fbff;
+}
+
+html.dark .results-theme-button {
+  background:
+    rgba(56, 126, 162, 0.15);
+
+  border-color:
+    rgba(155, 203, 229, 0.2);
+}
+
+html.dark .results-tabs,
+html.dark .results-card,
+html.dark .results-stat {
+  background:
+    rgba(12, 53, 78, 0.72);
+
+  border-color:
+    rgba(155, 203, 229, 0.17);
+
+  box-shadow:
+    0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+html.dark .results-title {
+  color: #f4fbff;
+}
+
+html.dark .results-muted {
+  color: #9bcbe5;
+}
+
+html.dark .results-text {
+  color: #ddecf6;
+}
+
+html.dark .results-tab-inactive {
+  color: #b9dbea;
+}
+
+html.dark .results-tab-inactive:hover {
+  background:
+    rgba(91, 163, 198, 0.15);
+}
+
+html.dark .results-secondary {
+  background:
+    rgba(12, 53, 78, 0.7);
+
+  border-color:
+    rgba(155, 203, 229, 0.2);
+
+  color: #ddecf6;
+}
+
+html.dark .results-secondary:hover {
+  background:
+    rgba(56, 126, 162, 0.3);
+}
+
+@keyframes floatCard {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ================================
+   ACCESSIBILITY
+================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ================================
+   MOBILE
+================================ */
+
+@media (max-width: 768px) {
+  .mountain-bg {
+    background-attachment: scroll;
+  }
+
+  .glow {
+    opacity: 0.55;
+  }
+}
