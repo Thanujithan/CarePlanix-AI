@@ -9,9 +9,13 @@ from routes.auth import router as auth_router
 from routes.profile import router as profile_router
 from routes.resume import router as resume_router
 from routes.career_plan import router as career_plan_router
+from routes.jobs import router as jobs_router
 
 
-# Load environment variables
+# =========================================================
+# LOAD ENVIRONMENT VARIABLES
+# =========================================================
+
 load_dotenv()
 
 
@@ -50,27 +54,36 @@ app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(resume_router)
 app.include_router(career_plan_router)
+app.include_router(jobs_router)
 
 
 # =========================================================
 # MONGODB
 # =========================================================
 
-MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_URI = os.getenv(
+    "MONGODB_URI"
+)
 
 DATABASE_NAME = os.getenv(
     "DATABASE_NAME",
     "careplanix"
 )
 
+
 if not MONGODB_URI:
     raise ValueError(
         "MONGODB_URI not found in .env"
     )
 
-client = MongoClient(MONGODB_URI)
 
-db = client[DATABASE_NAME]
+client = MongoClient(
+    MONGODB_URI
+)
+
+db = client[
+    DATABASE_NAME
+]
 
 
 # =========================================================
@@ -79,9 +92,13 @@ db = client[DATABASE_NAME]
 
 @app.get("/")
 def root():
+
     return {
-        "message": "Welcome to CarePlanix AI 🚀",
-        "status": "Backend is running"
+        "message":
+            "Welcome to CarePlanix AI 🚀",
+
+        "status":
+            "Backend is running"
     }
 
 
@@ -94,17 +111,27 @@ def health_check():
 
     try:
 
-        client.admin.command("ping")
+        client.admin.command(
+            "ping"
+        )
 
         return {
-            "status": "healthy",
-            "database": "connected"
+            "status":
+                "healthy",
+
+            "database":
+                "connected"
         }
 
     except Exception as e:
 
         return {
-            "status": "unhealthy",
-            "database": "disconnected",
-            "error": str(e)
+            "status":
+                "unhealthy",
+
+            "database":
+                "disconnected",
+
+            "error":
+                str(e)
         }

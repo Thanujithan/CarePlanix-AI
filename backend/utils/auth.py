@@ -3,8 +3,11 @@ import os
 
 import bcrypt
 from dotenv import load_dotenv
-from fastapi import HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, status
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
 from jose import JWTError, jwt
 
 
@@ -43,10 +46,9 @@ security = HTTPBearer()
 # PASSWORD HASHING
 # =========================================================
 
-def hash_password(password: str) -> str:
-    """
-    Hash a plain-text password using bcrypt.
-    """
+def hash_password(
+    password: str
+) -> str:
 
     return bcrypt.hashpw(
         password.encode("utf-8"),
@@ -62,18 +64,16 @@ def verify_password(
     password: str,
     hashed_password: str
 ) -> bool:
-    """
-    Compare a plain-text password with
-    a bcrypt password hash.
-    """
 
     try:
+
         return bcrypt.checkpw(
             password.encode("utf-8"),
             hashed_password.encode("utf-8")
         )
 
     except Exception:
+
         return False
 
 
@@ -85,8 +85,12 @@ def create_access_token(
     user_id: str
 ) -> str:
 
+    current_time = datetime.now(
+        timezone.utc
+    )
+
     expire = (
-        datetime.now(timezone.utc)
+        current_time
         + timedelta(
             hours=ACCESS_TOKEN_EXPIRE_HOURS
         )
@@ -94,10 +98,8 @@ def create_access_token(
 
     payload = {
         "sub": user_id,
+        "iat": current_time,
         "exp": expire,
-        "iat": datetime.now(
-            timezone.utc
-        ),
     }
 
     return jwt.encode(
@@ -108,39 +110,56 @@ def create_access_token(
 
 
 # =========================================================
-# DECODE JWT TOKEN
+# DECODE JWT ACCESS TOKEN
 # =========================================================
 
 def decode_access_token(
     token: str
 ) -> str:
-    """
-    Decode JWT and return user ID.
-    """
 
     try:
+
         payload = jwt.decode(
             token,
             SECRET_KEY,
-            algorithms=[ALGORITHM]
+            algorithms=[
+                ALGORITHM
+            ]
         )
 
-        user_id = payload.get("sub")
+        user_id = payload.get(
+            "sub"
+        )
 
         if not user_id:
+
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token"
+                status_code=(
+                    status.HTTP_401_UNAUTHORIZED
+                ),
+                detail=(
+                    "Invalid authentication token"
+                ),
+                headers={
+                    "WWW-Authenticate":
+                        "Bearer"
+                }
             )
 
         return user_id
 
     except JWTError:
+
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication token",
+            status_code=(
+                status.HTTP_401_UNAUTHORIZED
+            ),
+            detail=(
+                "Invalid or expired authentication token"
+            ),
             headers={
-                "WWW-Authenticate": "Bearer"
+                "WWW-Authenticate":
+                    "Bearer"
             }
         )
 
@@ -150,9 +169,15 @@ def decode_access_token(
 # =========================================================
 
 def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials
+    credentials:
+        HTTPAuthorizationCredentials
+        = Depends(security)
 ) -> str:
 
-    token = credentials.credentials
+    token = (
+        credentials.credentials
+    )
 
-    return decode_access_token(token)
+    return decode_access_token(
+        token
+    )
