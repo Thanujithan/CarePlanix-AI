@@ -7,6 +7,15 @@ import {
 
 import Link from "next/link";
 
+/* =========================================================
+   API CONFIGURATION
+========================================================= */
+
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
+
 
 /* =========================================================
    TYPES
@@ -443,21 +452,21 @@ export default function ResultsPage() {
         const response =
           await fetch(
 
-            `http://127.0.0.1:8000/jobs/search?query=${encodeURIComponent(
-              query
-            )}`,
+              `${API_BASE_URL}/jobs/search?query=${encodeURIComponent(
+                query
+              )}`,
 
-            {
-              method:
-                "GET",
+              {
+                method:
+                  "GET",
 
-              headers: {
+                headers: {
 
-                Authorization:
-                  `Bearer ${token}`,
+                  Authorization:
+                    `Bearer ${token}`,
 
-              },
-            }
+                },
+              }
           );
 
 

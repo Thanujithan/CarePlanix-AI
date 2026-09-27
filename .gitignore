@@ -1,1 +1,49 @@
+# =========================
+# BACKEND
+# =========================
+
+backend/.env
+backend/.venv/
+backend/venv/
+backend/Scripts/
+backend/Lib/
+backend/Include/
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Temporary files
+*.tmp
+*.log
+
+
+# =========================
+# FRONTEND
+# =========================
+
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+
+# =========================
+# GENERAL
+# =========================
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+
+# Uploaded / temporary resume files
 backend/uploads/

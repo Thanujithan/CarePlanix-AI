@@ -26,23 +26,58 @@ load_dotenv()
 app = FastAPI(
     title="CarePlanix AI API",
     description="Agentic AI Career and Internship Management System",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
 # =========================================================
-# CORS
+# CORS CONFIGURATION
 # =========================================================
+
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    ""
+).strip()
+
+
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+
+# Add production frontend URL if configured
+if FRONTEND_URL:
+
+    cleaned_frontend_url = (
+        FRONTEND_URL
+        .rstrip("/")
+    )
+
+    if (
+        cleaned_frontend_url
+        not in allowed_origins
+    ):
+        allowed_origins.append(
+            cleaned_frontend_url
+        )
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+
+    allow_origins=
+        allowed_origins,
+
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_methods=[
+        "*"
+    ],
+
+    allow_headers=[
+        "*"
+    ],
 )
 
 
@@ -50,15 +85,29 @@ app.add_middleware(
 # ROUTERS
 # =========================================================
 
-app.include_router(auth_router)
-app.include_router(profile_router)
-app.include_router(resume_router)
-app.include_router(career_plan_router)
-app.include_router(jobs_router)
+app.include_router(
+    auth_router
+)
+
+app.include_router(
+    profile_router
+)
+
+app.include_router(
+    resume_router
+)
+
+app.include_router(
+    career_plan_router
+)
+
+app.include_router(
+    jobs_router
+)
 
 
 # =========================================================
-# MONGODB
+# MONGODB CONFIGURATION
 # =========================================================
 
 MONGODB_URI = os.getenv(
@@ -72,14 +121,19 @@ DATABASE_NAME = os.getenv(
 
 
 if not MONGODB_URI:
+
     raise ValueError(
-        "MONGODB_URI not found in .env"
+        "MONGODB_URI environment variable is missing."
     )
 
 
 client = MongoClient(
-    MONGODB_URI
+    MONGODB_URI,
+
+    serverSelectionTimeoutMS=
+        10000,
 )
+
 
 db = client[
     DATABASE_NAME
@@ -98,7 +152,7 @@ def root():
             "Welcome to CarePlanix AI 🚀",
 
         "status":
-            "Backend is running"
+            "Backend is running",
     }
 
 
@@ -120,7 +174,7 @@ def health_check():
                 "healthy",
 
             "database":
-                "connected"
+                "connected",
         }
 
     except Exception as e:
@@ -133,5 +187,5 @@ def health_check():
                 "disconnected",
 
             "error":
-                str(e)
+                str(e),
         }

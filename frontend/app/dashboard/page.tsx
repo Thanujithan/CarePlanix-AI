@@ -8,6 +8,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
 
 /* =========================================================
    TYPES
@@ -131,18 +135,17 @@ export default function DashboardPage() {
           =============================================== */
 
           const userResponse =
-            await fetch(
-              "http://127.0.0.1:8000/auth/me",
-              {
-                method: "GET",
+             await fetch(
+                `${API_BASE_URL}/auth/me`,
+                {
+                  method: "GET",
 
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              }
-            );
-
+                  headers: {
+                    Authorization:
+                      `Bearer ${token}`,
+                  },
+                }
+              );
 
           if (
             userResponse.status === 401 ||
@@ -178,16 +181,16 @@ export default function DashboardPage() {
           =============================================== */
 
           const historyResponse =
-            await fetch(
-              "http://127.0.0.1:8000/resume/history",
-              {
-                method: "GET",
+              await fetch(
+                `${API_BASE_URL}/resume/history`,
+                {
+                  method: "GET",
 
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              }
+                  headers: {
+                    Authorization:
+                      `Bearer ${token}`,
+                  },
+                }
             );
 
 
@@ -320,18 +323,17 @@ export default function DashboardPage() {
 
 
         const response =
-          await fetch(
-            `http://127.0.0.1:8000/resume/history/${historyId}`,
-            {
-              method: "GET",
+           await fetch(
+              `${API_BASE_URL}/resume/history/${historyId}`,
+              {
+                method: "GET",
 
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
-
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
 
         const data =
           await response.json();

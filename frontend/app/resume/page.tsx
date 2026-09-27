@@ -9,6 +9,14 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+/* =========================================================
+   API CONFIGURATION
+========================================================= */
+
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
 
 /* =========================================================
    TYPES
@@ -235,19 +243,19 @@ export default function ResumePage() {
         ------------------------------------------------- */
 
         const response =
-          await fetch(
-            "http://127.0.0.1:8000/resume/upload",
-            {
-              method: "POST",
+           await fetch(
+              `${API_BASE_URL}/resume/upload`,
+              {
+                method: "POST",
 
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
 
-              body: formData,
-            }
-          );
+                body: formData,
+              }
+            );
 
 
         const data =

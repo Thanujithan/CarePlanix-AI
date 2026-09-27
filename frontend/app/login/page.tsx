@@ -1,8 +1,21 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+
+/* =========================================================
+   API CONFIGURATION
+========================================================= */
+
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
+
 
 /* =========================================================
    TYPES
@@ -12,6 +25,7 @@ type LoginResponse = {
   success?: boolean;
   message?: string;
   detail?: string;
+
   access_token?: string;
   token_type?: string;
 
@@ -21,6 +35,7 @@ type LoginResponse = {
     email?: string;
   };
 };
+
 
 /* =========================================================
    LOGIN PAGE
@@ -41,6 +56,7 @@ export default function LoginPage() {
   const [error, setError] =
     useState("");
 
+
   /* =======================================================
      LOGIN
   ======================================================= */
@@ -55,30 +71,45 @@ export default function LoginPage() {
     const cleanEmail =
       email.trim().toLowerCase();
 
+
+    /* ===============================
+       VALIDATION
+    =============================== */
+
     if (!cleanEmail) {
       setError(
         "Please enter your email address."
       );
+
       return;
     }
+
 
     if (!password) {
       setError(
         "Please enter your password."
       );
+
       return;
     }
 
+
     setLoading(true);
 
+
     try {
+      /* ===============================
+         CALL CAREPLANIX BACKEND
+      =============================== */
+
       const response = await fetch(
-        "http://127.0.0.1:8000/auth/login",
+        `${API_BASE_URL}/auth/login`,
         {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
 
           body: JSON.stringify({
@@ -88,21 +119,34 @@ export default function LoginPage() {
         }
       );
 
+
       const data: LoginResponse =
         await response.json();
+
+
+      /* ===============================
+         API ERROR
+      =============================== */
 
       if (!response.ok) {
         throw new Error(
           data.detail ||
+            data.message ||
             "Login failed."
         );
       }
+
+
+      /* ===============================
+         CHECK TOKEN
+      =============================== */
 
       if (!data.access_token) {
         throw new Error(
           "Access token was not returned."
         );
       }
+
 
       /* =====================================================
          SAVE AUTH DATA
@@ -113,31 +157,58 @@ export default function LoginPage() {
         data.access_token
       );
 
+
       if (data.user) {
         localStorage.setItem(
           "careplanix_user",
           JSON.stringify(data.user)
         );
+      } else {
+        localStorage.removeItem(
+          "careplanix_user"
+        );
       }
+
 
       /* =====================================================
          REDIRECT
       ===================================================== */
 
       router.push("/");
+      router.refresh();
 
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
+      console.error(
+        "Login error:",
+        err
+      );
+
+
+      if (err instanceof TypeError) {
+        setError(
+          "Cannot connect to the CarePlanix AI server. Please check the backend connection."
+        );
+
+      } else if (err instanceof Error) {
+        setError(
+          err.message
+        );
+
       } else {
         setError(
           "Something went wrong while logging in."
         );
       }
+
     } finally {
       setLoading(false);
     }
   };
+
+
+  /* =========================================================
+     PAGE
+  ========================================================= */
 
   return (
     <main className="min-h-screen bg-[#EAF4F9] text-[#184E6C]">
@@ -154,17 +225,22 @@ export default function LoginPage() {
             href="/"
             className="flex items-center gap-3"
           >
+
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#184E6C] font-black text-white">
               CP
             </div>
 
+
             <div className="text-xl font-bold">
               CarePlanix
+
               <span className="ml-1 text-[#5BA3C6]">
                 AI
               </span>
             </div>
+
           </Link>
+
 
           <Link
             href="/register"
@@ -188,9 +264,13 @@ export default function LoginPage() {
 
         <div className="absolute -right-32 bottom-0 h-96 w-96 rounded-full bg-[#5BA3C6]/10 blur-3xl" />
 
+
         <div className="relative mx-auto grid min-h-[calc(100vh-77px)] max-w-7xl items-center gap-12 px-6 py-12 lg:grid-cols-2">
 
-          {/* LEFT SIDE */}
+
+          {/* =================================================
+              LEFT SIDE
+          ================================================= */}
 
           <div className="hidden lg:block">
 
@@ -199,6 +279,7 @@ export default function LoginPage() {
               <div className="inline-flex items-center gap-2 rounded-full border border-[#9BCBE5]/40 bg-white/60 px-4 py-2 text-sm font-semibold text-[#387EA2]">
                 👋 Welcome Back
               </div>
+
 
               <h1 className="mt-6 text-5xl font-black leading-tight">
 
@@ -210,12 +291,16 @@ export default function LoginPage() {
 
               </h1>
 
+
               <p className="mt-6 max-w-lg text-lg leading-8 text-[#5B8298]">
+
                 Login to CarePlanix AI to manage
                 your career profile, resume analysis,
                 personalized roadmap and job
                 recommendations.
+
               </p>
+
 
               <div className="mt-8 space-y-4">
 
@@ -225,11 +310,13 @@ export default function LoginPage() {
                   text="Access AI-powered resume and career insights."
                 />
 
+
                 <FeatureItem
                   icon="🗺️"
                   title="Career Roadmap"
                   text="Continue your personalized learning journey."
                 />
+
 
                 <FeatureItem
                   icon="💼"
@@ -244,7 +331,9 @@ export default function LoginPage() {
           </div>
 
 
-          {/* LOGIN CARD */}
+          {/* =================================================
+              LOGIN CARD
+          ================================================= */}
 
           <div className="mx-auto w-full max-w-lg">
 
@@ -256,9 +345,11 @@ export default function LoginPage() {
                   🔐
                 </div>
 
+
                 <h2 className="mt-5 text-3xl font-black">
                   Login
                 </h2>
+
 
                 <p className="mt-2 text-sm leading-6 text-[#5B8298]">
                   Sign in to your CarePlanix AI account.
@@ -266,6 +357,10 @@ export default function LoginPage() {
 
               </div>
 
+
+              {/* =================================================
+                  LOGIN FORM
+              ================================================= */}
 
               <form
                 onSubmit={handleLogin}
@@ -283,18 +378,25 @@ export default function LoginPage() {
                     Email Address
                   </label>
 
+
                   <input
                     id="email"
                     type="email"
                     value={email}
+
                     onChange={(event) =>
                       setEmail(
                         event.target.value
                       )
                     }
+
                     placeholder="example@email.com"
+
                     autoComplete="email"
-                    className="w-full rounded-2xl border border-[#9BCBE5]/50 bg-[#F8FCFE] px-5 py-4 outline-none transition placeholder:text-[#8AA7B7] focus:border-[#387EA2] focus:ring-4 focus:ring-[#5BA3C6]/10"
+
+                    disabled={loading}
+
+                    className="w-full rounded-2xl border border-[#9BCBE5]/50 bg-[#F8FCFE] px-5 py-4 outline-none transition placeholder:text-[#8AA7B7] focus:border-[#387EA2] focus:ring-4 focus:ring-[#5BA3C6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                   />
 
                 </div>
@@ -311,18 +413,25 @@ export default function LoginPage() {
                     Password
                   </label>
 
+
                   <input
                     id="password"
                     type="password"
                     value={password}
+
                     onChange={(event) =>
                       setPassword(
                         event.target.value
                       )
                     }
+
                     placeholder="Enter your password"
+
                     autoComplete="current-password"
-                    className="w-full rounded-2xl border border-[#9BCBE5]/50 bg-[#F8FCFE] px-5 py-4 outline-none transition placeholder:text-[#8AA7B7] focus:border-[#387EA2] focus:ring-4 focus:ring-[#5BA3C6]/10"
+
+                    disabled={loading}
+
+                    className="w-full rounded-2xl border border-[#9BCBE5]/50 bg-[#F8FCFE] px-5 py-4 outline-none transition placeholder:text-[#8AA7B7] focus:border-[#387EA2] focus:ring-4 focus:ring-[#5BA3C6]/10 disabled:cursor-not-allowed disabled:opacity-60"
                   />
 
                 </div>
@@ -331,9 +440,11 @@ export default function LoginPage() {
                 {/* ERROR */}
 
                 {error && (
+
                   <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                     ⚠️ {error}
                   </div>
+
                 )}
 
 
@@ -342,17 +453,23 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
+
                   className="w-full rounded-2xl bg-gradient-to-r from-[#184E6C] to-[#387EA2] px-6 py-4 font-bold text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                 >
+
                   {loading
                     ? "Logging in..."
-                    : "Login"}
+                    : "Login"
+                  }
+
                 </button>
 
               </form>
 
 
-              {/* REGISTER LINK */}
+              {/* =================================================
+                  REGISTER LINK
+              ================================================= */}
 
               <div className="mt-7 border-t border-[#9BCBE5]/30 pt-6 text-center">
 
@@ -398,17 +515,20 @@ function FeatureItem({
   text: string;
 }) {
   return (
+
     <div className="flex items-start gap-4 rounded-2xl border border-[#9BCBE5]/30 bg-white/60 p-5">
 
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#DDECF6] text-xl">
         {icon}
       </div>
 
+
       <div>
 
         <h3 className="font-bold">
           {title}
         </h3>
+
 
         <p className="mt-1 text-sm leading-6 text-[#5B8298]">
           {text}
