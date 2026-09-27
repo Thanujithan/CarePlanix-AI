@@ -278,6 +278,15 @@ export default function ResultsPage() {
   ] =
     useState(false);
 
+  /* =======================================================
+   PDF EXPORT STATE
+======================================================= */
+
+  const [
+    pdfExporting,
+    setPdfExporting,
+  ] = useState(false);
+
 
   /* =======================================================
      LOAD SAVED RESULT
@@ -571,6 +580,1022 @@ export default function ResultsPage() {
       }
     };
 
+  /* =======================================================
+   EXPORT RESULTS AS PDF
+======================================================= */
+
+const exportResultsPDF = async () => {
+  if (!result) {
+    return;
+  }
+
+  try {
+    setPdfExporting(true);
+
+    const { jsPDF } = await import("jspdf");
+
+    const doc = new jsPDF({
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const margin = 15;
+    const contentWidth = pageWidth - margin * 2;
+
+    let y = 18;
+
+    const ensureSpace = (required: number = 10) => {
+      if (y + required > pageHeight - 18) {
+        doc.addPage();
+        y = 18;
+      }
+    };
+
+    const valueToText = (value: unknown): string => {
+      if (
+        value === null ||
+        value === undefined
+      ) {
+        return "";
+      }
+
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
+        return String(value);
+      }
+
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => valueToText(item))
+          .filter(Boolean)
+          .join(", ");
+      }
+
+      if (typeof value === "object") {
+        const objectValue =
+          value as Record<string, unknown>;
+
+        return Object.entries(objectValue)
+          .map(([key, item]) => {
+            const text = valueToText(item);
+
+            return text
+              ? `${key.replace(/_/g, " ")}: ${text}`
+              : "";
+          })
+          .filter(Boolean)
+          .join(" | ");
+      }
+
+      return String(value);
+    };
+
+    const addMainTitle = (text: string) => {
+      ensureSpace(16);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(24, 78, 108);
+
+      doc.text(
+        text,
+        margin,
+        y
+      );
+
+      y += 10;
+    };
+
+    const addSection = (title: string) => {
+      ensureSpace(16);
+
+      y += 3;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(24, 78, 108);
+
+      doc.text(
+        title,
+        margin,
+        y
+      );
+
+      y += 3;
+
+      doc.setDrawColor(
+        155,
+        203,
+        229
+      );
+
+      doc.line(
+        margin,
+        y,
+        pageWidth - margin,
+        y
+      );
+
+      y += 7;
+    };
+
+    const addText = (value: unknown) => {
+      const text =
+        valueToText(value);
+
+      if (!text) {
+        return;
+      }
+
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
+
+      doc.setFontSize(10);
+
+      doc.setTextColor(
+        55,
+        90,
+        110
+      );
+
+      const lines =
+        doc.splitTextToSize(
+          text,
+          contentWidth
+        ) as string[];
+
+      lines.forEach((line) => {
+        ensureSpace(6);
+
+        doc.text(
+          line,
+          margin,
+          y
+        );
+
+        y += 5;
+      });
+
+      y += 2;
+    };
+
+    const addField = (
+      label: string,
+      value: unknown
+    ) => {
+      const text =
+        valueToText(value);
+
+      if (!text) {
+        return;
+      }
+
+      ensureSpace(9);
+
+      doc.setFont(
+        "helvetica",
+        "bold"
+      );
+
+      doc.setFontSize(10);
+
+      doc.setTextColor(
+        24,
+        78,
+        108
+      );
+
+      doc.text(
+        `${label}:`,
+        margin,
+        y
+      );
+
+      y += 5;
+
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
+
+      doc.setTextColor(
+        55,
+        90,
+        110
+      );
+
+      const lines =
+        doc.splitTextToSize(
+          text,
+          contentWidth - 5
+        ) as string[];
+
+      lines.forEach((line) => {
+        ensureSpace(6);
+
+        doc.text(
+          line,
+          margin + 5,
+          y
+        );
+
+        y += 5;
+      });
+
+      y += 2;
+    };
+
+    const addList = (
+      items?: unknown[]
+    ) => {
+      if (
+        !items ||
+        items.length === 0
+      ) {
+        addText(
+          "No information available."
+        );
+
+        return;
+      }
+
+      items.forEach((item) => {
+        const text =
+          valueToText(item);
+
+        if (!text) {
+          return;
+        }
+
+        const lines =
+          doc.splitTextToSize(
+            text,
+            contentWidth - 8
+          ) as string[];
+
+        lines.forEach(
+          (
+            line,
+            index
+          ) => {
+            ensureSpace(6);
+
+            doc.setFont(
+              "helvetica",
+              "normal"
+            );
+
+            doc.setFontSize(10);
+
+            doc.setTextColor(
+              55,
+              90,
+              110
+            );
+
+            doc.text(
+              index === 0
+                ? `- ${line}`
+                : `  ${line}`,
+              margin + 3,
+              y
+            );
+
+            y += 5;
+          }
+        );
+
+        y += 1;
+      });
+    };
+
+    /* ========================
+       REPORT HEADER
+    ======================== */
+
+    addMainTitle(
+      "CarePlanix AI Career Analysis Report"
+    );
+
+    doc.setFont(
+      "helvetica",
+      "normal"
+    );
+
+    doc.setFontSize(9);
+
+    doc.setTextColor(
+      90,
+      120,
+      135
+    );
+
+    doc.text(
+      `Generated: ${new Date().toLocaleString()}`,
+      margin,
+      y
+    );
+
+    y += 7;
+
+    if (result.filename) {
+      addField(
+        "Resume",
+        result.filename
+      );
+    }
+
+    /* ========================
+       PROFILE
+    ======================== */
+
+    addSection(
+      "1. Profile Overview"
+    );
+
+    addField(
+      "Name",
+      result.analysis
+        ?.personal_information
+        ?.name
+    );
+
+    addField(
+      "Email",
+      result.analysis
+        ?.personal_information
+        ?.email
+    );
+
+    addField(
+      "Phone",
+      result.analysis
+        ?.personal_information
+        ?.phone
+    );
+
+    addField(
+      "Location",
+      result.analysis
+        ?.personal_information
+        ?.location
+    );
+
+    /* ========================
+       EDUCATION
+    ======================== */
+
+    addSection(
+      "2. Education"
+    );
+
+    if (
+      result.analysis
+        ?.education &&
+      result.analysis
+        .education.length > 0
+    ) {
+      result.analysis.education.forEach(
+        (
+          education,
+          index
+        ) => {
+          addField(
+            `Education ${index + 1}`,
+            education.degree
+          );
+
+          addField(
+            "Institution",
+            education.institution
+          );
+
+          addField(
+            "Duration",
+            education.duration
+          );
+        }
+      );
+    } else {
+      addText(
+        "No education information available."
+      );
+    }
+
+    /* ========================
+       TECHNICAL SKILLS
+    ======================== */
+
+    addSection(
+      "3. Technical Skills"
+    );
+
+    addList(
+      result.analysis
+        ?.technical_skills
+    );
+
+    /* ========================
+       SKILL ANALYSIS
+    ======================== */
+
+    addSection(
+      "4. Skill Analysis"
+    );
+
+    addField(
+      "Strong Skills",
+      result.skill_analysis
+        ?.strong_skills
+    );
+
+    addField(
+      "Intermediate Skills",
+      result.skill_analysis
+        ?.intermediate_skills
+    );
+
+    addField(
+      "Skills to Improve",
+      result.skill_analysis
+        ?.weak_skills
+    );
+
+    addField(
+      "Programming Languages",
+      result.skill_analysis
+        ?.programming_languages
+    );
+
+    addField(
+      "Frameworks",
+      result.skill_analysis
+        ?.frameworks
+    );
+
+    addField(
+      "Databases",
+      result.skill_analysis
+        ?.databases
+    );
+
+    addField(
+      "AI / ML Skills",
+      result.skill_analysis
+        ?.ai_ml_skills
+    );
+
+    addField(
+      "DevOps / Cloud",
+      result.skill_analysis
+        ?.devops_cloud_skills
+    );
+
+    addField(
+      "Recommended Skills",
+      result.skill_analysis
+        ?.recommended_skills
+    );
+
+    /* ========================
+       CAREER ANALYSIS
+    ======================== */
+
+    addSection(
+      "5. Career Recommendations"
+    );
+
+    addField(
+      "Top Career",
+      result.career_analysis
+        ?.top_career
+        ?.title
+    );
+
+    const careerPercentage =
+      result.career_analysis
+        ?.top_career
+        ?.match_percentage;
+
+    if (
+      careerPercentage !==
+      undefined
+    ) {
+      addField(
+        "Career Match",
+        `${careerPercentage}%`
+      );
+    }
+
+    addField(
+      "Reason",
+      result.career_analysis
+        ?.top_career
+        ?.reason
+    );
+
+    if (
+      result.career_analysis
+        ?.alternative_careers
+    ) {
+      result.career_analysis
+        .alternative_careers
+        .forEach(
+          (
+            career,
+            index
+          ) => {
+            addField(
+              `Alternative Career ${index + 1}`,
+              career.title
+            );
+
+            if (
+              career.match_percentage !==
+              undefined
+            ) {
+              addField(
+                "Match",
+                `${career.match_percentage}%`
+              );
+            }
+
+            addField(
+              "Reason",
+              career.reason
+            );
+          }
+        );
+    }
+
+    addField(
+      "Skills Needed",
+      result.career_analysis
+        ?.skills_needed_for_top_career
+    );
+
+    addField(
+      "Next Steps",
+      result.career_analysis
+        ?.next_steps
+    );
+
+    /* ========================
+       SKILL GAP
+    ======================== */
+
+    addSection(
+      "6. Skill Gap Analysis"
+    );
+
+    addField(
+      "Target Career",
+      result.skill_gap_analysis
+        ?.target_career
+    );
+
+    const readiness =
+      result.skill_gap_analysis
+        ?.job_readiness_percentage;
+
+    if (readiness !== undefined) {
+      addField(
+        "Job Readiness",
+        `${readiness}%`
+      );
+    }
+
+    if (
+      result.skill_gap_analysis
+        ?.skill_gaps
+    ) {
+      result.skill_gap_analysis
+        .skill_gaps
+        .forEach(
+          (
+            gap,
+            index
+          ) => {
+            addField(
+              `Skill Gap ${index + 1}`,
+              gap.skill
+            );
+
+            addField(
+              "Current Level",
+              gap.current_level
+            );
+
+            addField(
+              "Required Level",
+              gap.required_level
+            );
+
+            addField(
+              "Priority",
+              gap.priority
+            );
+
+            addField(
+              "Reason",
+              gap.reason
+            );
+          }
+        );
+    }
+
+    addField(
+      "Soft Skill Gaps",
+      result.skill_gap_analysis
+        ?.soft_skill_gaps
+    );
+
+    addField(
+      "Learning Order",
+      result.skill_gap_analysis
+        ?.learning_order
+    );
+
+    /* ========================
+       ROADMAP
+    ======================== */
+
+    addSection(
+      "7. Personalized Learning Roadmap"
+    );
+
+    addField(
+      "Target Career",
+      result.roadmap
+        ?.target_career
+    );
+
+    if (
+      result.roadmap?.roadmap
+    ) {
+      result.roadmap.roadmap.forEach(
+        (
+          phase,
+          index
+        ) => {
+          addField(
+            `Phase ${index + 1}`,
+            phase.phase
+          );
+
+          addField(
+            "Duration",
+            phase.duration
+          );
+
+          addField(
+            "Skills",
+            phase.skills
+          );
+
+          addField(
+            "Topics",
+            phase.topics
+          );
+
+          addField(
+            "Projects",
+            phase.projects
+          );
+
+          addField(
+            "Practice",
+            phase.practice
+          );
+        }
+      );
+    }
+
+    addField(
+      "Portfolio Projects",
+      result.roadmap
+        ?.portfolio_projects
+    );
+
+    addField(
+      "Interview Preparation",
+      result.roadmap
+        ?.interview_preparation
+    );
+
+    addField(
+      "Job Preparation",
+      result.roadmap
+        ?.job_preparation
+    );
+
+    /* ========================
+       AI JOBS
+    ======================== */
+
+    addSection(
+      "8. AI Job Recommendations"
+    );
+
+    addField(
+      "Top Role",
+      result.job_matches
+        ?.top_role
+    );
+
+    if (
+      result.job_matches
+        ?.recommended_roles
+    ) {
+      result.job_matches
+        .recommended_roles
+        .forEach(
+          (
+            role,
+            index
+          ) => {
+            addField(
+              `Role ${index + 1}`,
+              role.job_title
+            );
+
+            addField(
+              "Job Type",
+              role.job_type
+            );
+
+            if (
+              role.match_percentage !==
+              undefined
+            ) {
+              addField(
+                "Match",
+                `${role.match_percentage}%`
+              );
+            }
+
+            addField(
+              "Matching Skills",
+              role.matching_skills
+            );
+
+            addField(
+              "Missing Skills",
+              role.missing_skills
+            );
+
+            addField(
+              "Reason",
+              role.reason
+            );
+          }
+        );
+    }
+
+    addField(
+      "Application Advice",
+      result.job_matches
+        ?.application_advice
+    );
+
+    /* ========================
+       COMPANIES
+    ======================== */
+
+    addSection(
+      "9. Sri Lanka Company Recommendations"
+    );
+
+    addField(
+      "Country",
+      result.company_matches
+        ?.country
+    );
+
+    if (
+      result.company_matches
+        ?.recommended_companies
+    ) {
+      result.company_matches
+        .recommended_companies
+        .forEach(
+          (
+            company,
+            index
+          ) => {
+            addField(
+              `Company ${index + 1}`,
+              company.company_name
+            );
+
+            addField(
+              "Location",
+              company.location
+            );
+
+            addField(
+              "Industry",
+              company.industry
+            );
+
+            addField(
+              "Suitable Role",
+              company.suitable_role
+            );
+
+            addField(
+              "Employment Level",
+              company.employment_level
+            );
+
+            if (
+              company.match_percentage !==
+              undefined
+            ) {
+              addField(
+                "AI Match",
+                `${company.match_percentage}%`
+              );
+            }
+
+            addField(
+              "Matching Skills",
+              company.matching_skills
+            );
+
+            addField(
+              "Skills to Improve",
+              company.skills_to_improve
+            );
+
+            addField(
+              "Reason",
+              company.reason
+            );
+          }
+        );
+    }
+
+    addField(
+      "Recommended Job Types",
+      result.company_matches
+        ?.recommended_job_types
+    );
+
+    addField(
+      "Search Advice",
+      result.company_matches
+        ?.search_advice
+    );
+
+    /* ========================
+       LIVE JOBS
+    ======================== */
+
+    if (liveJobs.length > 0) {
+      addSection(
+        "10. Live Job Search Results"
+      );
+
+      liveJobs.forEach(
+        (
+          job,
+          index
+        ) => {
+          addField(
+            `Live Job ${index + 1}`,
+            job.title
+          );
+
+          addField(
+            "Company",
+            job.company
+          );
+
+          addField(
+            "Location",
+            job.location
+          );
+
+          addField(
+            "Date",
+            job.date
+          );
+
+          addField(
+            "Tags",
+            job.tags
+          );
+
+          addField(
+            "Source",
+            job.source
+          );
+
+          addField(
+            "Apply URL",
+            job.apply_url ||
+              job.job_url
+          );
+        }
+      );
+    }
+
+    /* ========================
+       DISCLAIMER
+    ======================== */
+
+    addSection(
+      "Important Note"
+    );
+
+    addText(
+      "Career matches, skill assessments, job readiness percentages and company recommendations are AI-generated guidance. Live job availability should be verified with the original job provider before applying."
+    );
+
+    /* ========================
+       PAGE NUMBERS
+    ======================== */
+
+    const pageCount =
+      doc.getNumberOfPages();
+
+    for (
+      let page = 1;
+      page <= pageCount;
+      page++
+    ) {
+      doc.setPage(page);
+
+      doc.setFont(
+        "helvetica",
+        "normal"
+      );
+
+      doc.setFontSize(8);
+
+      doc.setTextColor(
+        120,
+        140,
+        150
+      );
+
+      doc.text(
+        `CarePlanix AI | Page ${page} of ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 8,
+        {
+          align: "center",
+        }
+      );
+    }
+
+    /* ========================
+       SAVE PDF
+    ======================== */
+
+    const personName =
+      result.analysis
+        ?.personal_information
+        ?.name ||
+      "Career";
+
+    const safeName =
+      personName.replace(
+        /[^a-zA-Z0-9-_]/g,
+        "_"
+      );
+
+    doc.save(
+      `${safeName}_CarePlanix_Report.pdf`
+    );
+
+  } catch (error) {
+    console.error(
+      "PDF export failed:",
+      error
+    );
+
+    alert(
+      "Could not export the PDF. Please try again."
+    );
+
+  } finally {
+    setPdfExporting(false);
+  }
+};
+
 
   /* =======================================================
      LOADING
@@ -852,6 +1877,17 @@ export default function ResultsPage() {
               Dashboard
 
             </Link>
+
+            <button
+              type="button"
+              onClick={exportResultsPDF}
+              disabled={pdfExporting}
+              className="hidden rounded-xl border border-[#184E6C] bg-white px-4 py-3 text-sm font-semibold text-[#184E6C] transition hover:bg-[#EAF4F9] disabled:cursor-not-allowed disabled:opacity-60 sm:inline-block"
+            >
+              {pdfExporting
+                ? "Creating PDF..."
+                : "Export PDF"}
+            </button>
 
 
             <Link
