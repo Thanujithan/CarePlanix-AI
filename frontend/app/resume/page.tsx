@@ -7,7 +7,11 @@ import {
 } from "react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
+import {
+  useRouter,
+} from "next/navigation";
+
 
 /* =========================================================
    API CONFIGURATION
@@ -18,26 +22,49 @@ const API_BASE_URL = (
   "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
 
+
 /* =========================================================
    TYPES
 ========================================================= */
 
 type ResumeResult = {
   filename: string;
+
   text_preview: string;
 
-  analysis: Record<string, unknown>;
-  skill_analysis: Record<string, unknown>;
-  career_analysis: Record<string, unknown>;
-  skill_gap_analysis: Record<string, unknown>;
-  roadmap: Record<string, unknown>;
-  job_matches: Record<string, unknown>;
-  company_matches: Record<string, unknown>;
+  analysis:
+    Record<string, unknown>;
+
+  skill_analysis:
+    Record<string, unknown>;
+
+  career_analysis:
+    Record<string, unknown>;
+
+  skill_gap_analysis:
+    Record<string, unknown>;
+
+  roadmap:
+    Record<string, unknown>;
+
+  job_matches:
+    Record<string, unknown>;
+
+  company_matches:
+    Record<string, unknown>;
 
   history_id?: string;
+
   history_saved?: boolean;
+
   created_at?: string;
 };
+
+
+type ApiResponse =
+  Partial<ResumeResult> & {
+    detail?: string;
+  };
 
 
 /* =========================================================
@@ -46,19 +73,34 @@ type ResumeResult = {
 
 export default function ResumePage() {
 
-  const router = useRouter();
+  const router =
+    useRouter();
 
-  const [file, setFile] =
-    useState<File | null>(null);
 
-  const [dragging, setDragging] =
-    useState(false);
+  const [
+    file,
+    setFile,
+  ] = useState<File | null>(
+    null
+  );
 
-  const [loading, setLoading] =
-    useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [
+    dragging,
+    setDragging,
+  ] = useState(false);
+
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+
+  const [
+    error,
+    setError,
+  ] = useState("");
 
 
   /* =======================================================
@@ -71,13 +113,20 @@ export default function ResumePage() {
 
     setError("");
 
-    if (
-      selectedFile.type !==
-        "application/pdf" &&
-      !selectedFile.name
+
+    const isPdf =
+
+      selectedFile.type ===
+        "application/pdf"
+
+      ||
+
+      selectedFile.name
         .toLowerCase()
-        .endsWith(".pdf")
-    ) {
+        .endsWith(".pdf");
+
+
+    if (!isPdf) {
 
       setError(
         "Please upload a PDF file."
@@ -89,9 +138,13 @@ export default function ResumePage() {
     }
 
 
+    const maxFileSize =
+      10 * 1024 * 1024;
+
+
     if (
       selectedFile.size >
-      10 * 1024 * 1024
+      maxFileSize
     ) {
 
       setError(
@@ -104,7 +157,24 @@ export default function ResumePage() {
     }
 
 
-    setFile(selectedFile);
+    if (
+      selectedFile.size === 0
+    ) {
+
+      setError(
+        "The selected PDF is empty."
+      );
+
+      setFile(null);
+
+      return;
+    }
+
+
+    setFile(
+      selectedFile
+    );
+
   };
 
 
@@ -120,9 +190,15 @@ export default function ResumePage() {
     const selectedFile =
       event.target.files?.[0];
 
+
     if (selectedFile) {
-      validateFile(selectedFile);
+
+      validateFile(
+        selectedFile
+      );
+
     }
+
   };
 
 
@@ -138,12 +214,14 @@ export default function ResumePage() {
     event.preventDefault();
 
     setDragging(true);
+
   };
 
 
   const handleDragLeave = () => {
 
     setDragging(false);
+
   };
 
 
@@ -156,13 +234,21 @@ export default function ResumePage() {
 
     setDragging(false);
 
+
     const selectedFile =
-      event.dataTransfer
+      event
+        .dataTransfer
         .files?.[0];
 
+
     if (selectedFile) {
-      validateFile(selectedFile);
+
+      validateFile(
+        selectedFile
+      );
+
     }
+
   };
 
 
@@ -184,6 +270,7 @@ export default function ResumePage() {
         );
 
         return;
+
       }
 
 
@@ -204,22 +291,55 @@ export default function ResumePage() {
         );
 
 
-        setTimeout(() => {
+        window.setTimeout(
+          () => {
 
-          router.push(
-            "/login"
-          );
+            router.push(
+              "/login"
+            );
 
-        }, 1000);
+          },
+          1000
+        );
 
 
         return;
+
       }
 
+
+      /* ---------------------------------------------------
+         START LOADING
+      --------------------------------------------------- */
 
       setLoading(true);
 
       setError("");
+
+
+      /*
+       * Prevent endless spinner.
+       *
+       * 120 seconds is enough for:
+       * - Render wake-up
+       * - PDF extraction
+       * - Gemini analysis
+       * - MongoDB history save
+       */
+
+      const controller =
+        new AbortController();
+
+
+      const timeoutId =
+        window.setTimeout(
+          () => {
+
+            controller.abort();
+
+          },
+          120000
+        );
 
 
       try {
@@ -232,6 +352,15 @@ export default function ResumePage() {
           new FormData();
 
 
+        /*
+         * Browser sends the File directly.
+         *
+         * No FileReader.
+         * No Base64 conversion.
+         *
+         * Better for mobile memory.
+         */
+
         formData.append(
           "file",
           file
@@ -239,31 +368,73 @@ export default function ResumePage() {
 
 
         /* -------------------------------------------------
-           SEND RESUME + JWT TOKEN
+           SEND REQUEST
         ------------------------------------------------- */
 
         const response =
-           await fetch(
-              `${API_BASE_URL}/resume/upload`,
-              {
-                method: "POST",
+          await fetch(
 
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
+            `${API_BASE_URL}/resume/upload`,
 
-                body: formData,
-              }
-            );
+            {
 
+              method:
+                "POST",
 
-        const data =
-          await response.json();
+              headers: {
+
+                Authorization:
+                  `Bearer ${token}`,
+
+              },
+
+              body:
+                formData,
+
+              signal:
+                controller.signal,
+
+            }
+
+          );
 
 
         /* -------------------------------------------------
-           INVALID / EXPIRED TOKEN
+           READ RESPONSE SAFELY
+        ------------------------------------------------- */
+
+        let data:
+          ApiResponse = {};
+
+
+        const responseText =
+          await response.text();
+
+
+        if (responseText) {
+
+          try {
+
+            data =
+              JSON.parse(
+                responseText
+              ) as ApiResponse;
+
+          }
+
+          catch {
+
+            throw new Error(
+              "The CarePlanix AI server returned an invalid response."
+            );
+
+          }
+
+        }
+
+
+        /* -------------------------------------------------
+           INVALID TOKEN
         ------------------------------------------------- */
 
         if (
@@ -275,6 +446,7 @@ export default function ResumePage() {
             "careplanix_access_token"
           );
 
+
           localStorage.removeItem(
             "careplanix_user"
           );
@@ -285,55 +457,112 @@ export default function ResumePage() {
           );
 
 
-          setTimeout(() => {
+          window.setTimeout(
+            () => {
 
-            router.push(
-              "/login"
-            );
+              router.push(
+                "/login"
+              );
 
-          }, 1000);
+            },
+            1000
+          );
 
 
           return;
+
         }
 
 
         /* -------------------------------------------------
-           BACKEND ERROR
+           QUOTA ERROR
+        ------------------------------------------------- */
+
+        if (
+          response.status === 429
+        ) {
+
+          throw new Error(
+            data.detail ||
+            "CarePlanix AI usage limit has been reached. Please try again later."
+          );
+
+        }
+
+
+        /* -------------------------------------------------
+           GEMINI TEMPORARY ERROR
+        ------------------------------------------------- */
+
+        if (
+          response.status === 503
+        ) {
+
+          throw new Error(
+            data.detail ||
+            "CarePlanix AI is temporarily busy. Please try again shortly."
+          );
+
+        }
+
+
+        /* -------------------------------------------------
+           OTHER BACKEND ERRORS
         ------------------------------------------------- */
 
         if (!response.ok) {
 
           throw new Error(
             data.detail ||
-            "Resume analysis failed."
+            `Resume analysis failed (${response.status}).`
           );
+
         }
 
 
         /* -------------------------------------------------
-           RESULT
+           VALIDATE SUCCESS RESULT
         ------------------------------------------------- */
 
-        const result:
-          ResumeResult = data;
+        if (
+          !data.filename ||
+          !data.analysis ||
+          !data.skill_analysis ||
+          !data.career_analysis ||
+          !data.skill_gap_analysis ||
+          !data.roadmap ||
+          !data.job_matches ||
+          !data.company_matches
+        ) {
+
+          throw new Error(
+            "CarePlanix AI returned an incomplete analysis."
+          );
+
+        }
+
+
+        const result =
+          data as ResumeResult;
 
 
         /* -------------------------------------------------
            SAVE RESULT TEMPORARILY
-
-           Results page will read this
-           from sessionStorage.
         ------------------------------------------------- */
 
         sessionStorage.setItem(
+
           "careplanix_resume_result",
-          JSON.stringify(result)
+
+          JSON.stringify(
+            result
+          )
+
         );
 
 
         /* -------------------------------------------------
-           DEBUG HISTORY SAVE
+           DEBUG HISTORY
         ------------------------------------------------- */
 
         if (
@@ -345,11 +574,12 @@ export default function ResumePage() {
             "Analysis history saved:",
             result.history_id
           );
+
         }
 
 
         /* -------------------------------------------------
-           OPEN RESULTS DASHBOARD
+           OPEN RESULTS
         ------------------------------------------------- */
 
         router.push(
@@ -357,17 +587,50 @@ export default function ResumePage() {
         );
 
 
-      } catch (err) {
+      }
+
+      catch (err) {
+
+        /* -------------------------------------------------
+           REQUEST TIMEOUT
+        ------------------------------------------------- */
+
+        if (
+          err instanceof DOMException &&
+          err.name === "AbortError"
+        ) {
+
+          setError(
+            "The AI analysis took too long. Please try again."
+          );
+
+          return;
+
+        }
+
+
+        /* -------------------------------------------------
+           NETWORK / CORS ERROR
+        ------------------------------------------------- */
 
         if (
           err instanceof TypeError
         ) {
 
           setError(
-            "Cannot connect to the CarePlanix AI backend. Make sure FastAPI is running."
+            "Cannot connect to the CarePlanix AI server. Please try again."
           );
 
-        } else if (
+          return;
+
+        }
+
+
+        /* -------------------------------------------------
+           NORMAL ERROR
+        ------------------------------------------------- */
+
+        if (
           err instanceof Error
         ) {
 
@@ -375,17 +638,32 @@ export default function ResumePage() {
             err.message
           );
 
-        } else {
+          return;
 
-          setError(
-            "Something went wrong while analyzing your resume."
-          );
         }
 
-      } finally {
+
+        /* -------------------------------------------------
+           UNKNOWN ERROR
+        ------------------------------------------------- */
+
+        setError(
+          "Something went wrong while analyzing your resume."
+        );
+
+      }
+
+      finally {
+
+        window.clearTimeout(
+          timeoutId
+        );
+
 
         setLoading(false);
+
       }
+
     };
 
 
@@ -416,6 +694,7 @@ export default function ResumePage() {
         "
       />
 
+
       <div
         className="
           glow
@@ -431,12 +710,14 @@ export default function ResumePage() {
         "
       />
 
+
       <span
         className="
           particle
           particle-2
         "
       />
+
 
       <span
         className="
@@ -558,8 +839,6 @@ export default function ResumePage() {
           </Link>
 
 
-          {/* BACK HOME */}
-
           <Link
             href="/"
             className="
@@ -576,9 +855,7 @@ export default function ResumePage() {
               hover:bg-white/20
             "
           >
-
             ← Back Home
-
           </Link>
 
         </div>
@@ -682,12 +959,11 @@ export default function ResumePage() {
             "
           >
 
-            Let our AI analyze your
-            resume and provide
-            personalized career
+            Let our AI analyze your resume
+            and provide personalized career
             insights, skill gaps,
-            recommendations and a
-            learning roadmap.
+            recommendations and a learning
+            roadmap.
 
           </p>
 
@@ -725,6 +1001,7 @@ export default function ResumePage() {
             {/* DROP AREA */}
 
             <div
+
               onDragOver={
                 handleDragOver
               }
@@ -749,11 +1026,13 @@ export default function ResumePage() {
 
                 ${
                   dragging
+
                     ? `
                       scale-[1.02]
                       border-[#DDECF6]
                       bg-[#9BCBE5]/20
                     `
+
                     : `
                       border-[#9BCBE5]/40
                       bg-[#184E6C]/20
@@ -786,10 +1065,7 @@ export default function ResumePage() {
                   font-bold
                 "
               >
-
-                Drag & drop
-                your PDF here
-
+                Drag & drop your PDF here
               </h2>
 
 
@@ -799,10 +1075,7 @@ export default function ResumePage() {
                   text-[#DDECF6]/70
                 "
               >
-
-                or click below
-                to browse
-
+                or click below to browse
               </p>
 
 
@@ -823,18 +1096,17 @@ export default function ResumePage() {
 
 
                 <input
+
                   type="file"
 
-                  accept="
-                    .pdf,
-                    application/pdf
-                  "
+                  accept=".pdf,application/pdf"
 
                   onChange={
                     handleFileChange
                   }
 
                   className="hidden"
+
                 />
 
               </label>
@@ -848,8 +1120,8 @@ export default function ResumePage() {
                 "
               >
 
-                PDF files only
-                {" "}•{" "}
+                PDF files only{" "}
+                •{" "}
                 Maximum 10 MB
 
               </p>
@@ -914,9 +1186,7 @@ export default function ResumePage() {
                         sm:max-w-md
                       "
                     >
-
                       {file.name}
-
                     </p>
 
 
@@ -944,7 +1214,10 @@ export default function ResumePage() {
 
 
                 <button
+
                   type="button"
+
+                  disabled={loading}
 
                   onClick={() => {
 
@@ -959,11 +1232,11 @@ export default function ResumePage() {
                     text-[#DDECF6]/60
                     transition
                     hover:text-white
+                    disabled:cursor-not-allowed
+                    disabled:opacity-40
                   "
                 >
-
                   Remove
-
                 </button>
 
               </div>
@@ -989,9 +1262,7 @@ export default function ResumePage() {
                   text-red-100
                 "
               >
-
                 ⚠️ {error}
-
               </div>
 
             )}
@@ -1002,6 +1273,7 @@ export default function ResumePage() {
             =============================================== */}
 
             <button
+
               type="button"
 
               onClick={
@@ -1027,9 +1299,10 @@ export default function ResumePage() {
               "
             >
 
-              {loading
-                ? "CarePlanix AI is analyzing..."
-                : "Analyze My Resume →"
+              {
+                loading
+                  ? "Analyzing your resume..."
+                  : "Analyze My Resume →"
               }
 
             </button>
@@ -1069,11 +1342,8 @@ export default function ResumePage() {
                     text-[#DDECF6]/70
                   "
                 >
-
-                  Our AI agents are
-                  analyzing your
-                  resume...
-
+                  CarePlanix AI is analyzing
+                  your resume...
                 </p>
 
 
@@ -1084,10 +1354,8 @@ export default function ResumePage() {
                     text-[#9BCBE5]/70
                   "
                 >
-
-                  This may take a
-                  little time.
-
+                  This normally takes only
+                  a short time.
                 </p>
 
               </div>
@@ -1133,9 +1401,7 @@ export default function ResumePage() {
                 font-bold
               "
             >
-
               Why Upload?
-
             </h3>
 
 
@@ -1192,7 +1458,6 @@ export default function ResumePage() {
 
                   <div
                     key={text}
-
                     className="
                       flex
                       items-center
@@ -1212,9 +1477,7 @@ export default function ResumePage() {
                         bg-[#9BCBE5]/15
                       "
                     >
-
                       {icon}
-
                     </div>
 
 
@@ -1224,9 +1487,7 @@ export default function ResumePage() {
                         text-[#DDECF6]/80
                       "
                     >
-
                       {text}
-
                     </p>
 
                   </div>
@@ -1243,5 +1504,7 @@ export default function ResumePage() {
       </section>
 
     </main>
+
   );
+
 }
